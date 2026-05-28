@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DeviceInspector</string>
+    <string name="accessibility_service_description">DeviceInspector 使用此服务检测设备激活锁状态</string>
+</resources>
