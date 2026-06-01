@@ -66,14 +66,18 @@ class ReportResponse(BaseModel):
 
 
 class ReportVerifyRequest(BaseModel):
-    report_id: str
-    report_data: dict
-    signature: str
+    report_id: Optional[str] = None
+    report_data: Optional[dict] = None
+    signature: Optional[str] = None
 
 
 class ReportVerifyResponse(BaseModel):
     valid: bool
     message: str
+    report_id: Optional[str] = None
+    report_data: Optional[dict] = None
+    device_info: Optional[dict] = None
+    verified_at: Optional[str] = None
 
 
 class PriceRequest(BaseModel):

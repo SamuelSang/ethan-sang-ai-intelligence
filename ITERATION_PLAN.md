@@ -15,14 +15,14 @@
 
 ### 🔄 后端启动
 ```bash
-cd /Users/ethan/Desktop/App一元店/DeviceInspector/backend
+cd /Users/ethan/Desktop/APP两元店/DeviceInspector/backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
 ### 🔧 Flutter 调试
 ```bash
-cd /Users/ethan/Desktop/App一元店/DeviceInspector/device_inspector
+cd /Users/ethan/Desktop/APP两元店/DeviceInspector/device_inspector
 flutter run
 ```
 

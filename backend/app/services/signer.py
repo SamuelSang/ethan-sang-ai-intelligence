@@ -14,8 +14,14 @@ class ReportSigner:
     """
 
     def __init__(self, private_key_path: str = None):
-        if private_key_path and Path(private_key_path).exists():
-            with open(private_key_path, "rb") as f:
+        if private_key_path is None:
+            key_dir = Path(__file__).parent.parent.parent / "keys"
+            key_path = key_dir / "private_key.pem"
+        else:
+            key_path = Path(private_key_path)
+
+        if key_path.exists():
+            with open(key_path, "rb") as f:
                 self.private_key = serialization.load_pem_private_key(
                     f.read(), password=None, backend=default_backend()
                 )
@@ -27,7 +33,16 @@ class ReportSigner:
                 backend=default_backend()
             )
             # Save private key for demo purposes
-            self._save_demo_key()
+            if private_key_path is None:
+                self._save_demo_key()
+            else:
+                key_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(key_path, "wb") as f:
+                    f.write(self.private_key.private_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PrivateFormat.PKCS8,
+                        encryption_algorithm=serialization.NoEncryption()
+                    ))
 
     def _save_demo_key(self):
         """Save private key to file for demo (in production, use secure key storage)."""

@@ -5,6 +5,10 @@ import '../models/device_info.dart';
 import '../models/report.dart';
 import '../services/api_service.dart';
 import '../services/native_bridge.dart';
+import '../services/purchase_repository.dart';
+import '../services/iap_service.dart';
+import '../services/receipt_verifier.dart';
+import '../features/purchase/purchase_controller.dart';
 
 // ———— 单例服务 Provider ————
 
@@ -17,9 +21,44 @@ final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async 
   return SharedPreferences.getInstance();
 });
 
-// ———— 已购买状态 Provider ————
+// ———— 核心内购服务 Provider ————
 
-final isPurchasedProvider = StateProvider<bool>((ref) => false);
+final iapServiceProvider = Provider<IAPService>((ref) {
+  return IAPService();
+});
+
+final receiptVerifierProvider = Provider<ReceiptVerifier>((ref) {
+  return ReceiptVerifier();
+});
+
+final purchaseRepositoryProvider = Provider<PurchaseRepository>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider).maybeWhen(
+        data: (prefs) => prefs,
+        orElse: () => null,
+      );
+  if (prefs == null) {
+    throw Exception('SharedPreferences not initialized');
+  }
+  return PurchaseRepository(prefs);
+});
+
+// ———— Purchase Controller Provider ————
+
+final purchaseControllerProvider =
+    StateNotifierProvider<PurchaseController, PurchaseState>((ref) {
+  return PurchaseController(
+    iapService: ref.read(iapServiceProvider),
+    repository: ref.read(purchaseRepositoryProvider),
+    verifier: ref.read(receiptVerifierProvider),
+  );
+});
+
+// ———— 已购买状态 Provider (derived from purchase controller) ————
+
+final isPurchasedProvider = Provider<bool>((ref) {
+  final state = ref.watch(purchaseControllerProvider);
+  return state.isPurchased;
+});
 
 // ———— 扫描结果 Provider ————
 

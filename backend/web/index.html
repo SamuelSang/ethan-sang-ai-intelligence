@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeviceInspector - 报告验证</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 480px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 20px; }
+        .scan-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: transform 0.2s, box-shadow 0.2s; }
+        .scan-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
+        .divider { display: flex; align-items: center; margin: 25px 0; color: #999; font-size: 13px; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
+        .divider span { padding: 0 15px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 13px; color: #666; margin-bottom: 8px; }
+        .input-group input { width: 100%; padding: 14px; border: 2px solid #eee; border-radius: 10px; font-size: 15px; transition: border-color 0.3s; }
+        .input-group input:focus { outline: none; border-color: #667eea; }
+        .verify-btn { width: 100%; padding: 14px; background: #1a1a2e; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+        .verify-btn:hover { background: #2d2d4a; }
+        .verify-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .result-card { display: none; background: white; border-radius: 20px; padding: 25px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+        .result-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .status-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .status-icon.valid { background: #e8f5e9; color: #4caf50; }
+        .status-icon.invalid { background: #ffebee; color: #f44336; }
+        .status-text h3 { font-size: 18px; color: #1a1a2e; }
+        .status-text p { font-size: 13px; color: #666; margin-top: 2px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .info-item { background: #f8f9fa; padding: 12px; border-radius: 10px; }
+        .info-item .label { font-size: 11px; color: #999; text-transform: uppercase; margin-bottom: 4px; }
+        .info-item .value { font-size: 14px; color: #1a1a2e; font-weight: 500; }
+        .info-item.full { grid-column: 1 / -1; }
+        .tag { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .tag.valid { background: #e8f5e9; color: #4caf50; }
+        .tag.warning { background: #fff3e0; color: #ff9800; }
+        .share-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        .share-btn { width: 100%; padding: 12px; background: #f0f0f0; color: #333; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .share-btn:hover { background: #e0e0e0; }
+        #canvas { display: none; }
+        .loading { display: none; text-align: center; padding: 40px; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-msg { display: none; background: #ffebee; color: #c62828; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>DeviceInspector</h1>
+            <p>二手设备验证报告</p>
+        </div>
+
+        <div class="card">
+            <button class="scan-btn" onclick="startScan()">
+                <span>📷</span> 扫码验证报告
+            </button>
+            <div class="divider"><span>或输入 Report ID</span></div>
+            <div class="input-group">
+                <label>Report ID</label>
+                <input type="text" id="reportId" placeholder="例如: demo-001" value="demo-001">
+            </div>
+            <button class="verify-btn" id="verifyBtn" onclick="verifyReport()">验证报告</button>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在验证报告...</p>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="result-header">
+                <div class="status-icon" id="statusIcon">✓</div>
+                <div class="status-text">
+                    <h3 id="statusTitle">验证成功</h3>
+                    <p id="statusDesc">报告真实有效</p>
+                </div>
+            </div>
+            <div class="info-grid" id="infoGrid"></div>
+            <div class="share-section">
+                <button class="share-btn" onclick="generateShareImage()">
+                    <span>📤</span> 生成分享图片
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas" width="600" height="800"></canvas>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+
+        async function verifyReport() {
+            const reportId = document.getElementById('reportId').value.trim();
+            if (!reportId) { showError('请输入 Report ID'); return; }
+
+            hideError();
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultCard').style.display = 'none';
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/v1/report/verify?report_id=${encodeURIComponent(reportId)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ report_id: reportId })
+                });
+
+                if (!resp.ok) throw new Error('Report not found');
+                const data = await resp.json();
+                showResult(data);
+            } catch (e) {
+                showError('验证失败: ' + e.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function showResult(data) {
+            const card = document.getElementById('resultCard');
+            const icon = document.getElementById('statusIcon');
+            const title = document.getElementById('statusTitle');
+            const desc = document.getElementById('statusDesc');
+            const grid = document.getElementById('infoGrid');
+
+            if (data.valid) {
+                icon.className = 'status-icon valid';
+                icon.textContent = '✓';
+                title.textContent = '验证成功';
+                desc.textContent = '报告真实有效，未被篡改';
+            } else {
+                icon.className = 'status-icon invalid';
+                icon.textContent = '✗';
+                title.textContent = '验证失败';
+                desc.textContent = data.message || '报告验证失败';
+            }
+
+            const info = data.device_info || {};
+            const items = [
+                { label: '型号', value: info.model || '-' },
+                { label: '序列号', value: info.serial_number || '-' },
+                { label: 'IMEI', value: info.imei || '-' },
+                { label: '地区', value: info.region || '-' },
+                { label: '电池健康', value: info.battery_health ? info.battery_health + '%' : '-' },
+                { label: '颜色', value: info.color || '-' },
+                { label: '存储', value: info.storage || '-' },
+                { label: '激活锁', value: info.activation_lock ? '有' : '无', tag: info.activation_lock ? 'warning' : 'valid' },
+                { label: 'MDM锁', value: info.mdm_lock ? '有' : '无', tag: info.mdm_lock ? 'warning' : 'valid' },
+                { label: '翻新机', value: info.is_refurbished ? '是' : '否', tag: info.is_refurbished ? 'warning' : 'valid' },
+                { label: '运营商', value: info.carrier_lock || '无' },
+            ];
+
+            grid.innerHTML = items.map(item => `
+                <div class="info-item ${item.full ? 'full' : ''}">
+                    <div class="label">${item.label}</div>
+                    <div class="value">
+                        ${item.value}
+                        ${item.tag ? `<span class="tag ${item.tag}" style="margin-left:8px">${item.value}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            card.style.display = 'block';
+        }
+
+        function generateShareImage() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const reportId = document.getElementById('reportId').value;
+
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(0, 0, 600, 200);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 36px sans-serif';
+            ctx.fillText('DeviceInspector', 40, 70);
+            ctx.font = '20px sans-serif';
+            ctx.fillText('设备检测报告', 40, 110);
+            ctx.font = '14px sans-serif';
+            ctx.fillText(`Report ID: ${reportId}`, 40, 150);
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 200, 600, 600);
+            ctx.fillStyle = '#4caf50';
+            ctx.font = 'bold 48px sans-serif';
+            ctx.fillText('✓ 验证通过', 40, 280);
+            ctx.fillStyle = '#999';
+            ctx.font = '18px sans-serif';
+            ctx.fillText('真实有效 · 未被篡改', 40, 320);
+
+            ctx.fillStyle = '#666';
+            ctx.font = '14px sans-serif';
+            const infoItems = ['型号: iPhone 15 Pro', '序列号: DEMO123456', '电池: 95%', '激活锁: 无'];
+            infoItems.forEach((item, i) => {
+                ctx.fillText(item, 40, 400 + i * 35);
+            });
+
+            ctx.fillStyle = '#764ba2';
+            ctx.fillRect(0, 750, 600, 50);
+            ctx.fillStyle = 'white';
+            ctx.font = '14px sans-serif';
+            ctx.fillText('使用 DeviceInspector 验证', 40, 785);
+
+            const link = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = link;
+            a.download = `report-${reportId}.png`;
+            a.click();
+        }
+
+        function startScan() {
+            const reportId = prompt('请输入 Report ID (或扫描二维码获取):');
+            if (reportId) {
+                document.getElementById('reportId').value = reportId;
+                verifyReport();
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

@@ -53,11 +53,12 @@ class PairingService {
 
   /// 处理小程序扫码回调
   Future<PairingResult> handleScanCallback(String token, String unionId) async {
-    if (token != _currentToken) {
+    // Use constant-time comparison to prevent timing attacks
+    if (!_constantTimeEquals(token, _currentToken)) {
       return PairingResult(success: false, errorMessage: 'Token不匹配');
     }
 
-    if (DateTime.now().isAfter(_tokenExpiry!)) {
+    if (_tokenExpiry == null || DateTime.now().isAfter(_tokenExpiry!)) {
       return PairingResult(success: false, errorMessage: '配对已过期');
     }
 
@@ -67,7 +68,7 @@ class PairingService {
         Uri.parse('https://api.example.com/pairing/confirm'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'token': token, 'unionId': unionId}),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         _state = PairingState.confirmed;
@@ -77,6 +78,7 @@ class PairingService {
         return PairingResult(success: false, errorMessage: '配对失败');
       }
     } catch (e) {
+      // TODO: Log error via proper logging system
       _state = PairingState.failed;
       return PairingResult(success: false, errorMessage: e.toString());
     }
@@ -93,9 +95,10 @@ class PairingService {
           'deviceData': deviceData,
           'desktopId': Platform.localHostname,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
       return response.statusCode == 200;
     } catch (e) {
+      // TODO: Log error via proper logging system
       return false;
     }
   }
@@ -104,5 +107,18 @@ class PairingService {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     final random = Random.secure();
     return List.generate(_tokenLength, (_) => chars[random.nextInt(chars.length)]).join();
+  }
+
+  /// Constant-time string comparison to prevent timing attacks
+  bool _constantTimeEquals(String? a, String? b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    if (a.length != b.length) return false;
+
+    int result = 0;
+    for (int i = 0; i < a.length; i++) {
+      result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return result == 0;
   }
 }

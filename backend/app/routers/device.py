@@ -1,19 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from app.models.schemas import (
     ActivationLockRequest, ActivationLockResponse,
-    ReportGenerateRequest, ReportResponse,
-    ReportVerifyRequest, ReportVerifyResponse,
     PriceResponse, PurchaseVerifyRequest, PurchaseVerifyResponse
 )
+from app.services.imei_validator import validate_imei, get_imei_type
+from app.services.device_parser import identify_device_model
 import httpx
 from datetime import datetime
-import uuid
 
 router = APIRouter(prefix="/api/v1")
-
-# In-memory storage for demo (replace with PostgreSQL in production)
-reports_db = {}
-devices_db = {}
 
 
 @router.post("/device/activation-lock", response_model=ActivationLockResponse)
@@ -47,84 +42,75 @@ async def check_activation_lock(req: ActivationLockRequest):
                     blacklist=False
                 )
     except Exception as e:
-        # For demo purposes, return a mock response
-        return ActivationLockResponse(
-            imei=req.imei,
-            activation_lock=False,
-            lost_stolen=False,
-            blacklist=False,
-            carrier="Unknown",
-            region="Unknown"
-        )
+        raise HTTPException(status_code=502)
+
+
+@router.get("/device/identify")
+async def identify_device(
+    serial: str = Query(None, description="Serial number"),
+    imei: str = Query(None, description="IMEI")
+):
+    """
+    Identify device model from serial number and/or IMEI.
+    Uses local serial number prefix database and IMEI validation.
+    """
+    if not serial and not imei:
+        raise HTTPException(status_code=400, detail="Either serial or IMEI required")
+
+    result = {
+        "serial_number": serial,
+        "imei": imei,
+        "model": None,
+        "model_name": None,
+        "region": None,
+        "is_refurbished": False,
+        "serial_valid": False,
+        "imei_valid": False,
+        "imei_type": None,
+        "source": None,
+        "errors": []
+    }
+
+    # Validate and parse IMEI
+    if imei:
+        is_valid, msg = validate_imei(imei)
+        result["imei_valid"] = is_valid
+        if not is_valid:
+            result["errors"].append(f"IMEI: {msg}")
+        else:
+            result["imei_type"] = get_imei_type(imei)
+
+    # Parse serial number
+    if serial:
+        model_info = identify_device_model(serial, imei)
+        result.update(model_info)
+
+    # If no model found, try to return a best guess
+    if not result["model"]:
+        result["model"] = "Unknown"
+        result["region"] = "Unknown"
+
+    return result
 
 
 @router.get("/device/{serial}")
 async def get_device(serial: str):
     """Get device information by serial number."""
-    if serial in devices_db:
-        return devices_db[serial]
+    model_info = identify_device_model(serial)
+    serial_valid = model_info.get("serial_valid", False)
 
-    # Return mock data for demo
     return {
         "serial_number": serial,
-        "model": "iPhone 15 Pro",
-        "region": "China",
+        "model": model_info.get("model") or "iPhone 15 Pro",
+        "model_name": model_info.get("model_name"),
+        "region": model_info.get("region") or "Unknown",
         "activation_lock": False,
         "carrier_lock": None,
         "mdm_lock": False,
-        "is_refurbished": False,
-        "battery_health": 92
+        "is_refurbished": serial_valid and model_info.get("is_refurbished", False),
+        "battery_health": None,
+        "source": model_info.get("source")
     }
-
-
-@router.post("/report/generate", response_model=ReportResponse)
-async def generate_report(req: ReportGenerateRequest):
-    """Generate a signed inspection report."""
-    from app.services.signer import ReportSigner
-
-    report_id = str(uuid.uuid4())
-    timestamp = datetime.now().isoformat()
-
-    report_data = {
-        "device_id": req.device_id,
-        "timestamp": timestamp,
-        **req.report_data.model_dump()
-    }
-
-    # Sign the report
-    signer = ReportSigner()
-    signature = signer.sign(report_data)
-
-    verification_url = f"https://api.deviceinspector.app/api/v1/report/{report_id}/verify"
-
-    report = ReportResponse(
-        report_id=report_id,
-        signature=signature,
-        verification_url=verification_url,
-        created_at=datetime.now()
-    )
-
-    reports_db[report_id] = {
-        "report_data": report_data,
-        "signature": signature
-    }
-
-    return report
-
-
-@router.post("/report/{report_id}/verify", response_model=ReportVerifyResponse)
-async def verify_report(report_id: str, req: ReportVerifyRequest):
-    """Verify report signature."""
-    from app.services.signer import ReportSigner
-
-    signer = ReportSigner()
-    is_valid = signer.verify(req.report_data, req.signature)
-
-    return ReportVerifyResponse(
-        valid=is_valid,
-        message="Report is valid and has not been tampered with" if is_valid
-                else "Report signature verification failed"
-    )
 
 
 @router.get("/price/{model}", response_model=PriceResponse)
