@@ -74,6 +74,76 @@ class LibimobiledeviceService {
     }
   }
 
+  /// 获取设备型号 (e.g. "iPhone 15 Pro")
+  Future<String?> getProductName({String? udid}) async {
+    try {
+      final args = udid != null ? ['-u', udid] : <String>[];
+      final result = await Process.run('ideviceinfo', [...args, '-k', 'ProductName']);
+      if (result.exitCode != 0) return null;
+      return result.stdout.toString().trim();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 获取IMEI
+  Future<String?> getIMEI({String? udid}) async {
+    try {
+      final args = udid != null ? ['-u', udid] : <String>[];
+      final result = await Process.run(
+        'ideviceinfo',
+        [...args, '-q', 'com.apple.mobile.battery', '-k', 'InternationalMobileEquipmentIdentity']
+      );
+      if (result.exitCode != 0) return null;
+      return result.stdout.toString().trim();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 获取电池序列号
+  Future<String?> getBatterySerialNumber({String? udid}) async {
+    try {
+      final args = udid != null ? ['-u', udid] : <String>[];
+      final result = await Process.run(
+        'ideviceinfo',
+        [...args, '-q', 'com.apple.mobile.battery', '-k', 'BatterySerialNumber']
+      );
+      if (result.exitCode != 0) return null;
+      return result.stdout.toString().trim();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 获取设备颜色
+  Future<String?> getDeviceColor({String? udid}) async {
+    try {
+      final args = udid != null ? ['-u', udid] : <String>[];
+      final result = await Process.run('ideviceinfo', [...args, '-k', 'DeviceColor']);
+      if (result.exitCode != 0) return null;
+      return result.stdout.toString().trim();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 获取存储容量 (GB)
+  Future<int?> getStorageCapacity({String? udid}) async {
+    try {
+      final args = udid != null ? ['-u', udid] : <String>[];
+      final result = await Process.run('ideviceinfo', [...args, '-k', 'StorageCapacity']);
+      if (result.exitCode != 0) return null;
+      final output = result.stdout.toString().trim();
+      final parsed = int.tryParse(output);
+      if (parsed == null) return null;
+      // If value is very large, it's likely bytes; convert to GB
+      return parsed > 1000 ? (parsed / (1024 * 1024 * 1024)).round() : parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
   DeviceInfo _parseDeviceInfoFromXml(String xml) {
   // Expected XML keys from ideviceinfo -x output:
   // DeviceClass -> type
