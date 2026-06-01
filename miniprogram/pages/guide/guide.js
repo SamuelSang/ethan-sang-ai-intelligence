@@ -42,6 +42,20 @@ Page({
     // 监听电脑端回传的设备数据
     wx.eventCenter.on('deviceDataUpdated', (data) => {
       this.setData({ deviceInfoFromDesktop: data });
+
+      // 自动填充序列号/IMEI核对结果
+      if (data && data.serialNumber) {
+        const items = this.data.inspectionItems;
+        const serialIndex = items.findIndex(item => item.id === 25);
+        const imeiIndex = items.findIndex(item => item.id === 26);
+        if (serialIndex !== -1) {
+          items[serialIndex].status = 'pass';
+        }
+        if (imeiIndex !== -1 && data.imei) {
+          items[imeiIndex].status = 'pass';
+        }
+        this.setData({ inspectionItems: items });
+      }
     });
   },
 
@@ -52,6 +66,12 @@ Page({
   },
 
   onCompleteInspection() {
+    // P0-2: 检查hardwareData是否为空（防止伪造报告）
+    if (!this.data.deviceInfoFromDesktop || Object.keys(this.data.deviceInfoFromDesktop).length === 0) {
+      wx.showToast({ title: '请先连接电脑端获取硬件数据', icon: 'none' });
+      return;
+    }
+
     const results = this.data.inspectionItems.map(item => ({
       id: item.id,
       status: item.status,

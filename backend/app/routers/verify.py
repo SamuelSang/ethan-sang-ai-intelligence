@@ -1,20 +1,26 @@
-import time
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+from datetime import datetime
+import time as time_module
 from .signature_service import SignatureService
 
 router = APIRouter(prefix="/verify", tags=["verify"])
 
 @router.get("/{report_id}")
-async def verify_report(report_id: str, token: str = Query(...)):
+async def verify_report(report_id: str, timestamp: int = Query(...), signature: str = Query(...)):
     """验证报告真伪"""
-    # 解析token获取timestamp和signature
-    # 使用SignatureService验证签名
+    # 验证签名
+    if not SignatureService.verify_report_signature(report_id, timestamp, signature):
+        return {"valid": False, "reason": "Invalid signature"}
 
-    # 返回验证结果
+    # 检查时间戳是否在有效期内（如24小时）
+    current_time = int(datetime.now().timestamp())
+    if current_time - timestamp > 86400:
+        return {"valid": False, "reason": "Token expired"}
+
     return {
         "valid": True,
         "report_id": report_id,
-        "verified_at": int(time.time()),
+        "verified_at": current_time,
     }
 
 @router.get("/{report_id}/summary")

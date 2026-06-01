@@ -221,7 +221,9 @@ class LibimobiledeviceService {
     storageCapacity: storageCapacity,
     firmwareVersion: data['FirmwareVersion'] ?? '',
     activationLockEnabled: activationLockEnabled,
-    repairHistory: null,
+    repairHistory: data.containsKey('CHRepairability')
+        ? data['CHRepairability']
+        : '无法获取（需iOS 17+设备且已连接维修服务）',
   );
 }
 }

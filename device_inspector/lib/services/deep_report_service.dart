@@ -13,6 +13,7 @@ class DeepReportService {
     required Map<String, dynamic> hardwareData,
     required Map<String, bool> manualChecks,
     required List<String> photos,
+    String? userId,
   }) async {
     // 计算外观评分 (基于手动检测)
     final appearanceScore = _calculateAppearanceScore(manualChecks);
@@ -36,7 +37,7 @@ class DeepReportService {
       functionScore: functionScore,
       photos: photos,
       generatedAt: now,
-      watermarkUserId: 'pending', // 从通行证获取
+      watermarkUserId: userId ?? 'unknown',
       watermarkTimestamp: now,
     );
   }
