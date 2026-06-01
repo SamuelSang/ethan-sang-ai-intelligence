@@ -5,6 +5,8 @@ import '../models/new_device_info.dart';
 /// USB设备扫描服务
 /// 监听设备连接/断开事件
 class DeviceScanner {
+  static const _pollInterval = Duration(seconds: 2);
+
   final LibimobiledeviceService _libimobiledevice;
   StreamController<DeviceEvent>? _controller;
   Timer? _pollTimer;
@@ -22,7 +24,7 @@ class DeviceScanner {
   /// 开始监听设备变化
   void startListening() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+    _pollTimer = Timer.periodic(_pollInterval, (_) async {
       await _checkDeviceChanges();
     });
   }

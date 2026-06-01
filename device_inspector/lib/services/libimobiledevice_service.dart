@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:xml/xml.dart';
 import '../models/new_device_info.dart';
 
 /// libimobiledevice CLI封装服务
@@ -74,24 +75,83 @@ class LibimobiledeviceService {
   }
 
   DeviceInfo _parseDeviceInfoFromXml(String xml) {
-    // 使用xml package解析XML plist格式的设备信息
-    // 遍历DeviceInfo所需字段并返回
-    // 示例解析逻辑:
-    // final parsed = XmlDocument.parse(xml);
-    // 从parsed中提取各字段值
-    return DeviceInfo(
-      type: DeviceType.iphone,  // TODO: 从XML解析设备类型
-      modelName: '',            // TODO: 从XML解析
-      modelNumber: '',          // TODO: 从XML解析
-      serialNumber: '',         // TODO: 从XML解析
-      imei: null,
-      batterySerialNumber: null,
-      batteryCycleCount: null,
-      color: '',
-      storageCapacity: 0,
-      firmwareVersion: '',
-      activationLockEnabled: false,
-      repairHistory: null,
-    );
+  // Expected XML keys from ideviceinfo -x output:
+  // DeviceClass -> type
+  // ProductName -> modelName
+  // ModelNumber -> modelNumber
+  // SerialNumber -> serialNumber
+  // InternationalMobileEquipmentIdentity -> imei
+  // BatterySerialNumber -> batterySerialNumber
+  // BatteryCycleCount -> batteryCycleCount
+  // DeviceColor -> color
+  // StorageCapacity -> storageCapacity
+  // FirmwareVersion -> firmwareVersion
+  // FindMyPhoneEnabled -> activationLockEnabled
+
+  final document = XmlDocument.parse(xml);
+  final plist = document.rootElement;
+
+  // Extract key-value pairs from plist dict element
+  Map<String, String> parseDict(XmlElement dict) {
+    final result = <String, String>{};
+    final children = dict.childElements.toList();
+    for (int i = 0; i < children.length; i += 2) {
+      final key = children[i].innerText;
+      final value = children[i + 1].innerText;
+      result[key] = value;
+    }
+    return result;
   }
+
+  final data = parseDict(plist.findElements('dict').first);
+
+  // Parse DeviceClass to DeviceType
+  DeviceType type = DeviceType.unknown;
+  final deviceClass = data['DeviceClass'] ?? '';
+  if (deviceClass.toLowerCase().contains('iphone')) {
+    type = DeviceType.iphone;
+  } else if (deviceClass.toLowerCase().contains('ipad')) {
+    type = DeviceType.ipad;
+  } else if (deviceClass.toLowerCase().contains('ipod')) {
+    type = DeviceType.ipod;
+  }
+
+  // Parse storage capacity
+  int storageCapacity = 0;
+  final storageStr = data['StorageCapacity'] ?? '';
+  if (storageStr.isNotEmpty) {
+    // StorageCapacity may be in bytes or GB format
+    final parsed = int.tryParse(storageStr);
+    if (parsed != null) {
+      // If value is very large, it's likely bytes; convert to GB
+      storageCapacity = parsed > 1000 ? (parsed / (1024 * 1024 * 1024)).round() : parsed;
+    }
+  }
+
+  // Parse battery cycle count
+  int? batteryCycleCount;
+  final cycleStr = data['BatteryCycleCount'] ?? '';
+  if (cycleStr.isNotEmpty) {
+    batteryCycleCount = int.tryParse(cycleStr);
+  }
+
+  // Parse activation lock
+  final findMyStr = data['FindMyPhoneEnabled'] ?? '';
+  final activationLockEnabled = findMyStr.toLowerCase() == 'true' || findMyStr == '1';
+
+  return DeviceInfo(
+    type: type,
+    modelName: data['ProductName'] ?? '',
+    modelNumber: data['ModelNumber'] ?? '',
+    serialNumber: data['SerialNumber'] ?? '',
+    imei: data['InternationalMobileEquipmentIdentity'],
+    batterySerialNumber: data['BatterySerialNumber'],
+    batteryCycleCount: batteryCycleCount,
+    color: data['DeviceColor'] ?? '',
+    storageCapacity: storageCapacity,
+    firmwareVersion: data['FirmwareVersion'] ?? '',
+    activationLockEnabled: activationLockEnabled,
+    repairHistory: null,
+  );
+}
 }
