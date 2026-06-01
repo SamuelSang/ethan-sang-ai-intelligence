@@ -22,7 +22,11 @@ class Passport {
     required this.status,
   });
 
-  bool get isValid => status == 'active' && expireTime == null;
+  bool get isValid {
+    if (status != 'active') return false;
+    if (expireTime != null && expireTime!.isBefore(DateTime.now())) return false;
+    return true;
+  }
 
   factory Passport.fromJson(Map<String, dynamic> json) =>
       _$PassportFromJson(json);
