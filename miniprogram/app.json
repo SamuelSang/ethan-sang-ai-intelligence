@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/guide/guide",
+    "pages/pairing/pairing",
+    "pages/report/report",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "验机侦探",
+    "navigationBarTextStyle": "black"
+  }
+}

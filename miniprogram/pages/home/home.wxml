@@ -1,0 +1,30 @@
+<view class="home-container">
+  <view class="header">
+    <text class="title">验机侦探</text>
+    <text class="subtitle">两元店认证 · 设备深度检测</text>
+  </view>
+
+  <view class="device-selection">
+    <text class="section-title">选择设备类型</text>
+    <view class="device-grid">
+      <view class="device-card" bindtap="onSelectDevice" data-type="iphone">
+        <text class="device-icon">📱</text>
+        <text class="device-name">iPhone</text>
+      </view>
+      <view class="device-card" bindtap="onSelectDevice" data-type="ipad">
+        <text class="device-icon">📲</text>
+        <text class="device-name">iPad</text>
+      </view>
+      <view class="device-card" bindtap="onSelectDevice" data-type="mac">
+        <text class="device-icon">💻</text>
+        <text class="device-name">Mac</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="pairing-section">
+    <button class="btn-pairing" bindtap="onStartPairing">
+      连接电脑端获取深度数据
+    </button>
+  </view>
+</view>

@@ -1,0 +1,17 @@
+<view class="pairing-container">
+  <view class="header">
+    <text class="title">连接电脑端</text>
+    <text class="subtitle">扫描电脑端生成的二维码</text>
+  </view>
+
+  <button class="btn-scan" bindtap="onScanQRCode" loading="{{isScanning}}">
+    扫一扫
+  </button>
+
+  <view class="result-section" wx:if="{{scanResult}}">
+    <text class="result-text">{{scanResult.success ? '扫码成功' : '扫码失败'}}</text>
+    <button class="btn-confirm" bindtap="onConfirmPairing" wx:if="{{scanResult.success}}">
+      确认配对
+    </button>
+  </view>
+</view>
