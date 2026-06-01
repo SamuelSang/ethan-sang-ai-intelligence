@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.routers import device, report_verify
+from app.routers import device, report_verify, passport
 import os
 
 app = FastAPI(
@@ -22,6 +22,7 @@ app.add_middleware(
 # Include routers
 app.include_router(device.router)
 app.include_router(report_verify.router)
+app.include_router(passport.router)
 
 # Mount static web files for H5 verification page
 web_dir = os.path.join(os.path.dirname(__file__), "..", "web")
